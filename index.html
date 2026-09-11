@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartSched AI — Autonomous Production Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14171C;
+    --panel:#1B1F26;
+    --panel-2:#20252D;
+    --line:#2C323C;
+    --text:#E8E6E1;
+    --muted:#8B92A0;
+    --steel:#5C8CB8;
+    --steel-dim:#3E5A73;
+    --amber:#E8A33D;
+    --red:#D6604D;
+    --green:#4F9D69;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;}
+  h1,h2,h3,h4{font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;margin:0;letter-spacing:0.2px;}
+  .mono{font-family:'Space Mono',monospace;}
+  .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{background:#12151A;border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:28px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,var(--steel),var(--steel-dim));display:flex;align-items:center;justify-content:center;font-family:'Barlow Semi Condensed';font-weight:700;font-size:15px;}
+  .brand-name{font-size:16px;font-weight:700;font-family:'Barlow Semi Condensed';}
+  .brand-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+  nav{display:flex;flex-direction:column;gap:2px;}
+  .nav-item{padding:9px 10px;border-radius:var(--radius);color:var(--muted);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:9px;transition:background .15s,color .15s;}
+  .nav-item svg{width:15px;height:15px;flex:none;}
+  .nav-item:hover{background:var(--panel-2);color:var(--text);}
+  .nav-item.active{background:var(--panel-2);color:var(--text);border-left:2px solid var(--steel);padding-left:8px;}
+  .sidebar-footer{margin-top:auto;font-size:11px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:14px;}
+  .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;box-shadow:0 0 0 0 rgba(79,157,105,.6);animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(79,157,105,.55);}70%{box-shadow:0 0 0 6px rgba(79,157,105,0);}100%{box-shadow:0 0 0 0 rgba(79,157,105,0);}}
+
+  /* Main */
+  main{padding:22px 28px 60px;max-width:1400px;}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;flex-wrap:wrap;gap:14px;}
+  .topbar h1{font-size:24px;}
+  .topbar p{color:var(--muted);font-size:13px;margin-top:4px;max-width:520px;}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;}
+  button{font-family:'Inter';font-size:12.5px;font-weight:500;padding:8px 13px;border-radius:var(--radius);border:1px solid var(--line);background:var(--panel-2);color:var(--text);cursor:pointer;transition:border-color .15s,background .15s;}
+  button:hover{border-color:var(--steel);}
+  button.primary{background:var(--steel);border-color:var(--steel);color:#0d1116;font-weight:600;}
+  button.primary:hover{background:#6d9ac4;}
+  button.danger{background:transparent;border-color:var(--red);color:var(--red);}
+  button.danger:hover{background:rgba(214,96,77,.12);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* KPI row */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .kpi .label{font-size:11px;color:var(--muted);text-transform:none;}
+  .kpi .value{font-family:'Barlow Semi Condensed';font-size:28px;font-weight:700;margin-top:4px;}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .kpi.warn .value{color:var(--amber);}
+  .kpi.good .value{color:var(--green);}
+
+  /* Insight banner */
+  .insight-banner{background:linear-gradient(90deg,rgba(92,140,184,.12),transparent);border:1px solid var(--steel-dim);border-radius:var(--radius);padding:10px 14px;margin-bottom:22px;font-size:12.5px;color:var(--text);display:flex;gap:10px;align-items:flex-start;}
+  .insight-banner .tag{background:var(--steel);color:#0d1116;font-weight:700;font-size:10px;padding:2px 6px;border-radius:2px;flex:none;margin-top:1px;}
+
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:22px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);}
+  .panel-head h3{font-size:16px;}
+  .panel-head .hint{font-size:11px;color:var(--muted);}
+  .panel-body{padding:16px;}
+
+  /* Gantt */
+  .gantt-wrap{overflow-x:auto;}
+  .gantt-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-bottom:10px;}
+  .legend-dot{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle;}
+  svg text{font-family:'Inter',sans-serif;}
+  .bar{stroke:rgba(0,0,0,.35);stroke-width:1;transition:x 0.6s cubic-bezier(.4,0,.2,1),width 0.6s cubic-bezier(.4,0,.2,1),fill 0.4s;cursor:pointer;}
+  .bar-label{fill:#0d1116;font-size:10px;font-weight:600;pointer-events:none;}
+  .lane-label{fill:var(--muted);font-size:11.5px;}
+  .broken-overlay{fill:rgba(214,96,77,.08);}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th{text-align:left;color:var(--muted);font-weight:500;font-size:11px;padding:8px 10px;border-bottom:1px solid var(--line);}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);}
+  tr:last-child td{border-bottom:none;}
+  .pill{padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;display:inline-block;}
+  .pill.green{background:rgba(79,157,105,.15);color:var(--green);}
+  .pill.amber{background:rgba(232,163,61,.15);color:var(--amber);}
+  .pill.red{background:rgba(214,96,77,.15);color:var(--red);}
+  .pill.tier-platinum{background:rgba(200,170,255,.15);color:#c8aaff;}
+  .pill.tier-gold{background:rgba(232,193,61,.15);color:#e8c13d;}
+  .pill.tier-silver{background:rgba(180,190,200,.15);color:#b4bec8;}
+  .pill.tier-standard{background:rgba(139,146,160,.15);color:var(--muted);}
+
+  /* two column */
+  .cols{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:start;}
+  @media (max-width:1000px){.cols{grid-template-columns:1fr;} .kpi-row{grid-template-columns:repeat(2,1fr);} .app{grid-template-columns:1fr;} .sidebar{display:none;}}
+
+  /* Resource grid */
+  .res-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .res-card{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--panel-2);}
+  .res-card .name{font-weight:600;font-size:13px;}
+  .res-card .meta{font-size:11px;color:var(--muted);margin-top:3px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+  .status-available{background:var(--green);}
+  .status-busy{background:var(--steel);}
+  .status-broken{background:var(--red);}
+
+  /* Chat */
+  .chat-log{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;padding-right:4px;}
+  .msg{padding:9px 11px;border-radius:var(--radius);font-size:12.5px;line-height:1.5;max-width:92%;}
+  .msg.user{background:var(--panel-2);align-self:flex-end;border:1px solid var(--line);}
+  .msg.ai{background:rgba(92,140,184,.1);border:1px solid var(--steel-dim);align-self:flex-start;}
+  .chat-input-row{display:flex;gap:8px;}
+  .chat-input-row input{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:9px 11px;color:var(--text);font-size:12.5px;font-family:'Inter';}
+  .chat-input-row input:focus{outline:none;border-color:var(--steel);}
+  .suggestion{font-size:11px;color:var(--steel);cursor:pointer;margin-right:10px;display:inline-block;margin-top:8px;}
+  .suggestion:hover{text-decoration:underline;}
+
+  .what-if-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .footnote{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px;}
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+  @media (prefers-reduced-motion: reduce){.bar{transition:none;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div>
+        <div class="brand-name">SmartSched</div>
+        <div class="brand-sub">Autonomous Scheduling</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Dashboard</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M8 2v4M16 2v4M3 10h18"/></svg> Schedule</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/></svg> Orders</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> Resources</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg> Reports</div>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="pulse-dot"></span>Live simulation running<br>
+      Factory: <span class="mono">FCT-000A</span><br>
+      Horizon: 48h rolling window
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h1>Production floor, right now</h1>
+        <p>Every order, machine, worker and material constraint resolved into one live plan. Trigger a disruption below and watch it replan itself.</p>
+      </div>
+      <div class="actions">
+        <button onclick="addRushOrder()">+ Rush order</button>
+        <button onclick="breakRandomMachine()" class="danger">⚠ Simulate machine breakdown</button>
+        <button onclick="repairAllMachines()" class="primary">Repair all &amp; replan</button>
+      </div>
+    </div>
+
+    <div id="insightBanner" class="insight-banner"></div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Live schedule — Gantt view</h3>
+        <span class="hint">Scaled to a 48-hour rolling horizon · bars are draggable in production build</span>
+      </div>
+      <div class="panel-body">
+        <div class="gantt-legend">
+          <span><span class="legend-dot" style="background:var(--green)"></span>On track</span>
+          <span><span class="legend-dot" style="background:var(--amber)"></span>At risk (tight buffer)</span>
+          <span><span class="legend-dot" style="background:var(--red)"></span>Will miss deadline</span>
+          <span><span class="legend-dot" style="background:var(--steel-dim)"></span>Machine down</span>
+        </div>
+        <div class="gantt-wrap">
+          <svg id="ganttSvg" width="920" height="260"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Order queue</h3>
+            <span class="hint" id="orderCountHint"></span>
+          </div>
+          <div class="panel-body" style="padding:0 16px 16px;">
+            <table>
+              <thead><tr><th>Order</th><th>Customer tier</th><th>Deadline</th><th>Machine</th><th>Delivery risk</th></tr></thead>
+              <tbody id="ordersTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Machines &amp; workers</h3></div>
+          <div class="panel-body">
+            <div style="margin-bottom:14px;">
+              <div class="hint" style="color:var(--muted);font-size:11px;margin-bottom:8px;">MACHINES</div>
+              <div class="res-grid" id="machineGrid"></div>
+            </div>
+            <div>
+              <div class="hint" style="color:var(--muted);font-size:11px;margin-bottom:8px;">WORKERS</div>
+              <div class="res-grid" id="workerGrid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="panel-head"><h3>Ask SmartSched</h3></div>
+          <div class="panel-body">
+            <div class="chat-log" id="chatLog"></div>
+            <div class="chat-input-row">
+              <input id="chatInput" type="text" placeholder="Why was ORD-04 delayed?" onkeydown="if(event.key==='Enter')sendChat()">
+              <button class="primary" onclick="sendChat()">Ask</button>
+            </div>
+            <div>
+              <span class="suggestion" onclick="askPreset(0)">Why this order first?</span>
+              <span class="suggestion" onclick="askPreset(1)">What's the bottleneck?</span>
+              <span class="suggestion" onclick="askPreset(2)">Daily insight report</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>What-if simulator</h3></div>
+          <div class="panel-body">
+            <div class="what-if-grid">
+              <button onclick="addMachine()">+ Add machine</button>
+              <button onclick="addWorker()">+ Add worker</button>
+              <button onclick="cutMaterial()">Cut material stock</button>
+              <button onclick="resetSim()">Reset simulation</button>
+            </div>
+            <div class="footnote">
+              This demo runs a client-side JS scheduling engine by default. A companion Python backend
+              (Flask + exact MILP solver via SciPy/HiGHS + trained scikit-learn ML models) is available —
+              see the project README for how to point this UI at it by setting <code>window.USE_BACKEND = true</code>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ===================== STATE ===================== */
+const TIERS = { platinum: 1.0, gold: 0.75, silver: 0.5, standard: 0.3 };
+const TYPES = ['cutting','milling','assembly','painting'];
+const HORIZON = 48;
+
+let machines = [
+  {id:'M1', name:'Laser Cutter A', type:'cutting', status:'available'},
+  {id:'M2', name:'CNC Mill B', type:'milling', status:'available'},
+  {id:'M3', name:'Assembly Line 1', type:'assembly', status:'available'},
+  {id:'M4', name:'Assembly Line 2', type:'assembly', status:'available'},
+  {id:'M5', name:'Paint Booth', type:'painting', status:'available'},
+];
+
+let workers = [
+  {id:'W1', name:'A. Kumar', skills:['cutting','milling']},
+  {id:'W2', name:'S. Reddy', skills:['assembly']},
+  {id:'W3', name:'P. Nair', skills:['assembly','painting']},
+  {id:'W4', name:'J. Rao', skills:['milling','painting']},
+];
+
+let materials = [
+  {id:'MT1', name:'Steel sheet', stock:400, unit:'kg'},
+  {id:'MT2', name:'Aluminium rod', stock:150, unit:'kg'},
+  {id:'MT3', name:'Paint (industrial)', stock:60, unit:'L'},
+];
+
+let orders = [
+  {id:'ORD-01', customer:'Vantage Auto', tier:'platinum', type:'cutting', qty:220, duration:5, deadline:14, materialId:'MT1', materialQty:80},
+  {id:'ORD-02', customer:'Coastal Metals', tier:'standard', type:'milling', qty:90, duration:6, deadline:30, materialId:'MT2', materialQty:40},
+  {id:'ORD-03', customer:'Orion Devices', tier:'gold', type:'assembly', qty:150, duration:4, deadline:18, materialId:'MT1', materialQty:20},
+  {id:'ORD-04', customer:'Northline Freight', tier:'silver', type:'painting', qty:60, duration:3, deadline:22, materialId:'MT3', materialQty:25},
+  {id:'ORD-05', customer:'Vantage Auto', tier:'platinum', type:'assembly', qty:300, duration:7, deadline:20, materialId:'MT1', materialQty:60},
+  {id:'ORD-06', customer:'Delta Fabrication', tier:'standard', type:'cutting', qty:70, duration:3, deadline:40, materialId:'MT1', materialQty:30},
+  {id:'ORD-07', customer:'Orion Devices', tier:'gold', type:'milling', qty:130, duration:5, deadline:26, materialId:'MT2', materialQty:35},
+  {id:'ORD-08', customer:'Coastal Metals', tier:'standard', type:'painting', qty:40, duration:2, deadline:36, materialId:'MT3', materialQty:15},
+  {id:'ORD-09', customer:'Bramwell Inc', tier:'silver', type:'assembly', qty:100, duration:4, deadline:32, materialId:'MT1', materialQty:25},
+  {id:'ORD-10', customer:'Delta Fabrication', tier:'standard', type:'cutting', qty:55, duration:2, deadline:44, materialId:'MT1', materialQty:20},
+];
+
+let schedule = [];       // computed assignments
+let chatHistory = [];
+let rushCounter = 1;
+
+/* ===================== SCHEDULING ENGINE ===================== */
+function priorityScore(o){
+  const tierW = TIERS[o.tier] ?? 0.3;
+  const urgency = Math.max(0, Math.min(1, 1 - (o.deadline / HORIZON)));
+  const valueFactor = Math.min(o.qty/300, 1);
+  return +(tierW*0.5 + urgency*0.35 + valueFactor*0.15).toFixed(3);
+}
+
+    async function runScheduler(){
+      // Toggle USE_BACKEND to true and set BACKEND_URL to point this UI at
+      // the real Python backend (Flask + MILP/HiGHS + trained ML models)
+      // instead of the in-browser JS engine. Same data shapes either way.
+      if (window.USE_BACKEND) {
+        const res = await fetch(window.BACKEND_URL + '/api/schedule/generate', { method:'POST' });
+        const data = await res.json();
+        schedule = data.schedule;
+        return;
+      }
+      // reset trackers
+  const machineFree = {}; machines.forEach(m=> machineFree[m.id] = 0);
+  const workerFree = {}; workers.forEach(w=> workerFree[w.id] = 0);
+  const materialStock = {}; materials.forEach(m=> materialStock[m.id] = m.stock);
+
+  const scored = orders.map(o=>({...o, score: priorityScore(o)}));
+  scored.sort((a,b)=> b.score - a.score);
+
+  const result = [];
+  scored.forEach(o=>{
+    const candidateMachines = machines.filter(m=> m.type===o.type && m.status==='available');
+    if(candidateMachines.length === 0){
+      result.push({...o, status:'unassignable', reason:'No available machine of required type'});
+      return;
+    }
+    candidateMachines.sort((a,b)=> machineFree[a.id]-machineFree[b.id]);
+    const machine = candidateMachines[0];
+
+    const candidateWorkers = workers.filter(w=> w.skills.includes(o.type));
+    candidateWorkers.sort((a,b)=> workerFree[a.id]-workerFree[b.id]);
+    const worker = candidateWorkers[0];
+
+    let materialDelay = 0;
+    let materialShortage = false;
+    if(materialStock[o.materialId] !== undefined){
+      if(materialStock[o.materialId] < o.materialQty){
+        materialShortage = true;
+        materialDelay = 6; // simulated resupply wait
+      } else {
+        materialStock[o.materialId] -= o.materialQty;
+      }
+    }
+
+    const start = Math.max(machineFree[machine.id], worker ? workerFree[worker.id] : 0) + materialDelay;
+    const end = start + o.duration;
+    machineFree[machine.id] = end;
+    if(worker) workerFree[worker.id] = end;
+
+    let risk = 'green';
+    if(end > o.deadline) risk = 'red';
+    else if(o.deadline - end <= 3) risk = 'amber';
+
+    result.push({...o, machineId:machine.id, machineName:machine.name, workerId: worker?worker.id:null,
+      workerName: worker?worker.name:'Unassigned', start, end, risk, materialShortage, status:'scheduled'});
+  });
+
+  schedule = result;
+}
+
+/* ===================== RENDER: KPIs ===================== */
+function render(){
+  runScheduler();
+  renderKpis();
+  renderInsightBanner();
+  renderGantt();
+  renderOrdersTable();
+  renderResources();
+}
+
+function renderKpis(){
+  const total = schedule.length;
+  const onTime = schedule.filter(s=> s.risk==='green').length;
+  const atRisk = schedule.filter(s=> s.risk==='amber').length;
+  const delayed = schedule.filter(s=> s.risk==='red' || s.status==='unassignable').length;
+  const util = machines.length ? Math.round((schedule.filter(s=>s.status==='scheduled').length / (machines.filter(m=>m.status==='available').length * 4)) * 100) : 0;
+
+  const kpis = [
+    {label:'On-time orders', value: total? Math.round(onTime/total*100)+'%':'—', sub:onTime+' of '+total+' orders', cls: onTime/total > 0.7 ? 'good':'warn'},
+    {label:'At-risk orders', value: atRisk, sub:'within 3h buffer of deadline', cls:'warn'},
+    {label:'Will miss deadline', value: delayed, sub:'needs manager attention', cls: delayed>0 ? 'warn':'good'},
+    {label:'Avg. machine utilization', value: Math.min(util,100)+'%', sub: machines.filter(m=>m.status==='broken').length + ' machine(s) down', cls:''},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      <div class="sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+function renderInsightBanner(){
+  const delayed = schedule.filter(s=> s.risk==='red' || s.status==='unassignable');
+  const broken = machines.filter(m=>m.status==='broken');
+  let msg;
+  if(broken.length){
+    msg = `${broken.map(b=>b.name).join(', ')} offline — ${delayed.length} order(s) replanned around remaining capacity.`;
+  } else if(delayed.length){
+    const worst = delayed[0];
+    msg = `${delayed.length} order(s) at risk of missing deadline. Highest concern: ${worst.id} (${worst.customer}) — consider reassigning or adding a second shift.`;
+  } else {
+    msg = `All ${schedule.length} orders currently plan to finish on time. Machine utilization is balanced across available lines.`;
+  }
+  document.getElementById('insightBanner').innerHTML = `<span class="tag">AI</span><span>${msg}</span>`;
+}
+
+/* ===================== RENDER: GANTT ===================== */
+function renderGantt(){
+  const svg = document.getElementById('ganttSvg');
+  const laneH = 40, top = 30, leftPad = 130, chartW = 760;
+  const scaleX = h => leftPad + (h/HORIZON)*chartW;
+  const activeMachines = machines;
+  svg.setAttribute('height', top + activeMachines.length*laneH + 20);
+
+  let svgContent = '';
+  // hour gridlines every 6h
+  for(let h=0; h<=HORIZON; h+=6){
+    const x = scaleX(h);
+    svgContent += `<line x1="${x}" y1="${top-10}" x2="${x}" y2="${top+activeMachines.length*laneH}" stroke="#2C323C" stroke-width="1"/>`;
+    svgContent += `<text x="${x}" y="${top-16}" class="lane-label" text-anchor="middle">${h}h</text>`;
+  }
+
+  activeMachines.forEach((m,i)=>{
+    const y = top + i*laneH;
+    svgContent += `<text x="0" y="${y+laneH/2+4}" class="lane-label">${m.name}</text>`;
+    if(m.status==='broken'){
+      svgContent += `<rect x="${leftPad}" y="${y+4}" width="${chartW}" height="${laneH-10}" class="broken-overlay"/>`;
+      svgContent += `<text x="${leftPad+8}" y="${y+laneH/2+4}" fill="var(--red)" font-size="11">OFFLINE</text>`;
+    }
+    const tasks = schedule.filter(s=> s.machineId===m.id && s.status==='scheduled');
+    tasks.forEach(t=>{
+      const x = scaleX(t.start);
+      const w = Math.max(scaleX(t.end)-x, 14);
+      const color = t.risk==='red' ? 'var(--red)' : t.risk==='amber' ? 'var(--amber)' : 'var(--green)';
+      svgContent += `<rect class="bar" x="${x}" y="${y+6}" width="${w}" height="${laneH-16}" rx="2" fill="${color}">
+        <title>${t.id} — ${t.customer}\nStart ${t.start}h · End ${t.end}h\nDeadline ${t.deadline}h\nWorker ${t.workerName}</title>
+      </rect>`;
+      if(w > 34){
+        svgContent += `<text x="${x+6}" y="${y+laneH/2+4}" class="bar-label">${t.id}</text>`;
+      }
+    });
+    const deadlineMarker = schedule.filter(s=>s.machineId===m.id);
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+/* ===================== RENDER: ORDERS TABLE ===================== */
+function renderOrdersTable(){
+  document.getElementById('orderCountHint').textContent = schedule.length + ' orders in current horizon';
+  const rows = [...schedule].sort((a,b)=> (a.start ?? 999) - (b.start ?? 999));
+  document.getElementById('ordersTbody').innerHTML = rows.map(o=>{
+    const riskPill = o.status==='unassignable'
+      ? `<span class="pill red">Unassignable</span>`
+      : `<span class="pill ${o.risk}">${o.risk==='green'?'On time':o.risk==='amber'?'At risk':'Will miss'}</span>`;
+    return `<tr>
+      <td><strong>${o.id}</strong><br><span style="color:var(--muted);font-size:11px;">${o.customer}</span></td>
+      <td><span class="pill tier-${o.tier}">${o.tier}</span></td>
+      <td class="mono">${o.deadline}h</td>
+      <td>${o.machineName ?? '—'}</td>
+      <td>${riskPill}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ===================== RENDER: RESOURCES ===================== */
+function renderResources(){
+  document.getElementById('machineGrid').innerHTML = machines.map(m=>{
+    const load = schedule.filter(s=>s.machineId===m.id && s.status==='scheduled').length;
+    const statusClass = m.status==='broken' ? 'status-broken' : load>0 ? 'status-busy' : 'status-available';
+    const statusText = m.status==='broken' ? 'Broken down' : load>0 ? load+' tasks queued' : 'Idle';
+    return `<div class="res-card">
+      <div class="name"><span class="status-dot ${statusClass}"></span>${m.name}</div>
+      <div class="meta">${m.type} · ${statusText}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('workerGrid').innerHTML = workers.map(w=>{
+    const load = schedule.filter(s=>s.workerId===w.id && s.status==='scheduled').length;
+    return `<div class="res-card">
+      <div class="name"><span class="status-dot status-available"></span>${w.name}</div>
+      <div class="meta">${w.skills.join(', ')} · ${load} task(s)</div>
+    </div>`;
+  }).join('');
+}
+
+/* ===================== ACTIONS / WHAT-IF ===================== */
+function breakRandomMachine(){
+  const candidates = machines.filter(m=>m.status==='available');
+  if(candidates.length===0) return;
+  const m = candidates[Math.floor(Math.random()*candidates.length)];
+  m.status = 'broken';
+  pushAi(`⚠ ${m.name} just went offline. Recalculating the schedule around remaining capacity...`);
+  render();
+}
+
+function repairAllMachines(){
+  machines.forEach(m=> m.status='available');
+  pushAi(`All machines back online. Replanning for maximum on-time delivery.`);
+  render();
+}
+
+function addRushOrder(){
+  const types = TYPES;
+  const type = types[Math.floor(Math.random()*types.length)];
+  const material = materials.find(m => (type==='painting' ? m.id==='MT3' : m.id!=='MT3')) || materials[0];
+  const o = {
+    id: 'RUSH-'+String(rushCounter++).padStart(2,'0'),
+    customer:'Priority Client', tier:'platinum', type,
+    qty: 80+Math.floor(Math.random()*100), duration: 2+Math.floor(Math.random()*3),
+    deadline: 6+Math.floor(Math.random()*6), materialId: material.id, materialQty: 15
+  };
+  orders.push(o);
+  pushAi(`🚨 Rush order ${o.id} inserted (Platinum tier, ${o.deadline}h deadline). Re-scoring priorities — this will likely jump the queue.`);
+  render();
+}
+
+function addMachine(){
+  const type = TYPES[Math.floor(Math.random()*TYPES.length)];
+  const id = 'M'+(machines.length+1);
+  machines.push({id, name:'New '+type[0].toUpperCase()+type.slice(1)+' Unit', type, status:'available'});
+  pushAi(`Added a new ${type} machine. Capacity increased — replanning.`);
+  render();
+}
+
+function addWorker(){
+  const id = 'W'+(workers.length+1);
+  const skillSet = [TYPES[Math.floor(Math.random()*TYPES.length)]];
+  workers.push({id, name:'New Hire '+id, skills:skillSet});
+  pushAi(`Added a worker skilled in ${skillSet.join(', ')}. Replanning shift assignments.`);
+  render();
+}
+
+function cutMaterial(){
+  const m = materials[Math.floor(Math.random()*materials.length)];
+  m.stock = Math.max(0, Math.floor(m.stock*0.2));
+  pushAi(`Simulated a supply delay: ${m.name} stock cut to ${m.stock}${m.unit}. Orders needing it may now face a resupply delay.`);
+  render();
+}
+
+function resetSim(){
+  location.reload();
+}
+
+/* ===================== AI ASSISTANT (rule-based, data-driven) ===================== */
+function pushAi(text){
+  chatHistory.push({role:'ai', text});
+  renderChat();
+}
+function pushUser(text){
+  chatHistory.push({role:'user', text});
+  renderChat();
+}
+function renderChat(){
+  const log = document.getElementById('chatLog');
+  log.innerHTML = chatHistory.map(m=> `<div class="msg ${m.role}">${m.text}</div>`).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function explainOrder(orderId){
+  const o = schedule.find(s=> s.id.toLowerCase()===orderId.toLowerCase());
+  if(!o) return `I can't find an order called "${orderId}" in the current schedule. Try one of: ${schedule.slice(0,4).map(s=>s.id).join(', ')}.`;
+  if(o.status==='unassignable'){
+    return `${o.id} (${o.customer}) couldn't be scheduled — there's no available ${o.type} machine right now. Bringing a broken machine back online or adding capacity would resolve this.`;
+  }
+  const better = schedule.filter(s=> s.machineId===o.machineId && s.start < o.start).sort((a,b)=>b.start-a.start)[0];
+  let reason = `${o.id} (${o.customer}, ${o.tier} tier) is scheduled on ${o.machineName} from hour ${o.start} to ${o.end}, assigned to ${o.workerName}. `;
+  reason += `Its priority score is ${priorityScore(o)} — driven by its ${o.tier} tier, a deadline at hour ${o.deadline}, and order size of ${o.qty} units. `;
+  if(better){
+    reason += `It runs after ${better.id} because that order had a higher priority score (${priorityScore(better)} vs ${priorityScore(o)}) and claimed the machine first.`;
+  } else {
+    reason += `It's first in line on this machine.`;
+  }
+  if(o.materialShortage){
+    reason += ` Note: this order also faced a simulated material shortage, adding delay before it could start.`;
+  }
+  if(o.risk==='red'){
+    reason += ` ⚠ At current pace this order will miss its deadline — consider reassigning it to a less loaded machine or expediting materials.`;
+  }
+  return reason;
+}
+
+function bottleneckAnswer(){
+  const util = {};
+  machines.forEach(m=> util[m.id] = 0);
+  schedule.forEach(s=>{ if(s.machineId) util[s.machineId] += s.end-s.start; });
+  let worst = machines[0], worstLoad = -1;
+  machines.forEach(m=>{ if(util[m.id] > worstLoad){ worstLoad = util[m.id]; worst = m; }});
+  return `The current bottleneck is ${worst.name}, carrying ${worstLoad}h of scheduled work in the 48h window${worst.status==='broken' ? ' — and it is currently offline, which is compounding delays.' : '.'} Adding a second ${worst.type} machine or shifting compatible orders elsewhere would relieve the most pressure.`;
+}
+
+function dailyInsight(){
+  const delayed = schedule.filter(s=>s.risk==='red'||s.status==='unassignable').length;
+  const atRisk = schedule.filter(s=>s.risk==='amber').length;
+  const onTime = schedule.filter(s=>s.risk==='green').length;
+  const brokenM = machines.filter(m=>m.status==='broken').map(m=>m.name);
+  return `Daily insight: ${onTime} orders on track, ${atRisk} within a tight buffer, ${delayed} projected to miss their deadline. ${brokenM.length ? brokenM.join(', ')+' currently offline — highest-impact fix available. ' : ''}Recommended action: ${delayed>0 ? 'review the delayed orders list and consider reassigning the highest-tier customer first.' : 'no urgent action needed — capacity is currently balanced.'}`;
+}
+
+function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  pushUser(text);
+  input.value = '';
+  setTimeout(()=>{
+    const lower = text.toLowerCase();
+    const idMatch = orders.concat(schedule).map(o=>o.id).find(id=> lower.includes(id.toLowerCase()));
+    let reply;
+    if(idMatch){
+      reply = explainOrder(idMatch);
+    } else if(lower.includes('bottleneck') || lower.includes('slowest')){
+      reply = bottleneckAnswer();
+    } else if(lower.includes('insight') || lower.includes('summary') || lower.includes('report')){
+      reply = dailyInsight();
+    } else if(lower.includes('why') && lower.includes('first')){
+      const top = [...schedule].sort((a,b)=>priorityScore(b)-priorityScore(a))[0];
+      reply = `${top.id} (${top.customer}) currently has the highest priority score at ${priorityScore(top)} — a mix of its ${top.tier} tier, a close deadline at hour ${top.deadline}, and order size.`;
+    } else {
+      reply = `I can explain specific orders (try "why was ORD-03 delayed?"), point out the current bottleneck, or give you a daily insight summary — try one of the suggestions below.`;
+    }
+    pushAi(reply);
+  }, 350);
+}
+
+function askPreset(i){
+  if(i===0){ pushUser('Why this order first?'); setTimeout(()=>{ const top = [...schedule].sort((a,b)=>priorityScore(b)-priorityScore(a))[0]; pushAi(`${top.id} (${top.customer}) currently has the highest priority score at ${priorityScore(top)} — driven by its ${top.tier} tier, a close deadline at hour ${top.deadline}, and its order size.`); }, 300); }
+  if(i===1){ pushUser("What's the bottleneck?"); setTimeout(()=> pushAi(bottleneckAnswer()), 300); }
+  if(i===2){ pushUser('Daily insight report'); setTimeout(()=> pushAi(dailyInsight()), 300); }
+}
+
+/* ===================== INIT ===================== */
+pushAi(`Hi — I'm the SmartSched assistant. Ask me why any order is scheduled where it is, what's bottlenecking the floor, or trigger a disruption above and I'll explain how I replanned.`);
+render();
+</script>
+</body>
+</html>
